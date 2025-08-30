@@ -42,6 +42,7 @@ export function useRects(getters: Getters) {
 
     setSelectedRectIds(next);
     push(rects);
+  try { console.log('[useRects] onRectPointerDown', { rectId, selected: Array.from(next) }); } catch (err) {}
     beginDrag(e, next, rectId);
   }, [push, rects, beginDrag, selectedRectIds, setSelectedRectIds]);
 

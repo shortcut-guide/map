@@ -36,6 +36,9 @@ export function useRectDrag(
       captureTarget: (e.target as Element) || null,
     };
     try {
+      console.log("[useRectDrag] beginDrag", { rectId, selectedIds: Array.from(selectedIds), pointerId: pid });
+    } catch (err) {}
+    try {
       (e.target as Element).setPointerCapture?.(pid);
     } catch (err) {
       // some browsers may throw if capture not allowed; ignore
@@ -59,6 +62,11 @@ export function useRectDrag(
       const inv = os.width / ds.width;
       const dxO = dxDisp * inv;
       const dyO = dyDisp * inv;
+
+      try {
+        // debug
+        console.log('[useRectDrag] onMove', { dxDisp, dyDisp, pointerId: e.pointerId });
+      } catch (err) {}
 
       setRects((prev) =>
         prev.map((r) => {

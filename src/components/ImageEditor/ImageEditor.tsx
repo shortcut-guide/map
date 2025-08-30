@@ -66,6 +66,8 @@ export default function ImageEditor() {
     onRectPointerDown,
     onHandlePointerDown,
     onBlockClick,
+  activeBlock,
+  setActiveBlock,
     onSeparatorDown,
     addRect,
     deleteSelectedRects,
@@ -80,7 +82,6 @@ export default function ImageEditor() {
 
   // 仕様：選択は rect 基準。Block Inspector は block をクリックした時だけ出す。
   const [activeRectId, setActiveRectId] = useState<number | string | null>(null);
-  const [activeBlock, setActiveBlock] = useState<ActiveBlock | null>(null);
   const { onPanPointerDown, clampPan } = usePan({
     getZoom: () => editor.zoom,
     getDisplaySize: () => displaySize,
@@ -258,9 +259,22 @@ export default function ImageEditor() {
 
   // block をクリックしたときだけ Block Inspector を出す
   const onBlockClickBridge = useCallback(
-    (rectId: number, blockId: string) => {
-      onBlockClick(safeEvent as any, rectId, blockId);
-      setActiveBlock({ rectId, blockId });
+    (eOrRectId: any, maybeRectId?: any, maybeBlockId?: any) => {
+      // support both call signatures:
+      //  - (rectId, blockId)    -> older bridge usage
+      //  - (e, rectId, blockId) -> BlocksLayer now forwards event
+      if (eOrRectId && typeof eOrRectId === "object" && "stopPropagation" in eOrRectId) {
+        const e = eOrRectId as React.MouseEvent;
+        const rid = maybeRectId as number;
+        const bid = maybeBlockId as string;
+        onBlockClick(e as any, rid, bid);
+        setActiveBlock({ rectId: rid, blockId: bid });
+      } else {
+        const rid = eOrRectId as number;
+        const bid = maybeRectId as string;
+        onBlockClick(safeEvent as any, rid, bid);
+        setActiveBlock({ rectId: rid, blockId: bid });
+      }
     },
     [onBlockClick, safeEvent]
   );

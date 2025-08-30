@@ -30,12 +30,14 @@ export default function BlocksLayer({
   fontFamily,
   origToDisplayRect,
   onBlockClick,
+  onRectPointerDown,
 }: {
   rects: RectDef[];
   activeBlock: ActiveBlock | null;
   fontFamily: string;
   origToDisplayRect: (r: RectLike) => RectLike;
-  onBlockClick: (rectId: number, blockId: string) => void;
+  onBlockClick: (e: React.MouseEvent, rectId: number, blockId: string) => void;
+  onRectPointerDown?: (e: React.PointerEvent, rectId: number) => void;
 }) {
   useEffect(() => {
     injectEditorDefsToRoot();
@@ -62,8 +64,12 @@ export default function BlocksLayer({
               data-block-id={b.id}
               transform={`translate(${bx}, ${by})`}
               onClick={(e) => {
-                e.stopPropagation();
-                onBlockClick(rid, String(b.id));
+                // forward original event so upstream handler can stopPropagation and use event info
+                onBlockClick(e as any, rid, String(b.id));
+              }}
+              onPointerDown={(e) => {
+                // allow parent rect drag to begin when user presses on a block (will call beginDrag)
+                onRectPointerDown?.(e as any, rid);
               }}
               role="group"
               tabIndex={-1}

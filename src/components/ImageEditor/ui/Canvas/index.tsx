@@ -33,7 +33,7 @@ type Props = {
   onHandlePointerDown: (e: React.PointerEvent, rectId: number, handle: Corner) => void;
 
   /** ここ重要: イベントは渡さない */
-  onBlockClick: (rectId: number, blockId: string) => void;
+  onBlockClick: (e: React.MouseEvent, rectId: number, blockId: string) => void;
 
   showEditorBackground: boolean;
 
@@ -107,6 +107,7 @@ export default function Canvas(props: Props) {
               fontFamily={fontFamily}
               origToDisplayRect={origToDisplayRect}
               onBlockClick={onBlockClick}
+              onRectPointerDown={onRectPointerDown}
             />
 
             <SeparatorsLayer
