@@ -216,10 +216,10 @@ export async function downloadSVG(opts: ExportOptions) {
   chunks.push(`<image href="${esc(mainImg)}" xlink:href="${esc(mainImg)}" x="0" y="0" width="${origSize.width}" height="${origSize.height}" />`);
 
   for (const r of rects) {
-  // skip editor-only rects (working UI artifacts)
-  if ((r as any).editorOnly) continue;
+    // editor-only rects are editor artifacts; we still export their blocks (text/images)
+    const isEditorOnly = Boolean((r as any).editorOnly);
 
-  const rx = r.rect.x;
+    const rx = r.rect.x;
     const ry = r.rect.y;
     const rw = r.rect.width;
     const rh = r.rect.height;
@@ -276,7 +276,11 @@ export async function downloadSVG(opts: ExportOptions) {
           );
         }
 
-        if (b.text) {
+        if (b.text !== undefined && b.text !== null) {
+          try { console.log('[svgExport] block', { rectId: (r as any).id, blockId: b.id, hasText: !!b.text, textPreview: String(b.text).slice(0,80) }); } catch (err) {}
+        if (!b.text) {
+          // allow empty string treated as empty but still export empty tspan if needed
+        }
           const pad = b.textPadding ?? { top: 1, right: 1, bottom: 1, left: 1 };
           const lines = tspanLines(b.text);
           const weight = b.fontWeight ?? "normal";
@@ -322,19 +326,24 @@ export async function downloadSVG(opts: ExportOptions) {
           // ascent を base (fontSizePx) で実測（環境により異なるので canvas で計測）
           const ascentPx = measureTextAscentPx(fontSizePx, b.fontFamily ?? fontFamily, String(weight));
 
-          // group origin oy is the top edge where first line should start; we will position tspan y relative to that
-          // Use dominant-baseline="text-before-edge" so y corresponds to the top of the text box
+          // Use dy in em units so exported SVG uses relative metrics (more portable across viewers)
+          const ascentEm = ascentPx / Math.max(1, fontSizePx);
+          const lineHeightEm = lineHeightPx / Math.max(1, fontSizePx); // should equal lineHeightRatio
+
+          // build tspans with dy: first line uses ascentEm, subsequent lines use lineHeightEm
           const tspans = lines
-            .map((ln, i) => `<tspan x="0" y="${i * lineHeightPx + ascentPx}">${esc(ln)}</tspan>`)
+            .map((ln, i) => {
+              if (i === 0) return `<tspan x="0" dy="${ascentEm.toFixed(3)}em">${esc(ln)}</tspan>`;
+              return `<tspan x="0" dy="${lineHeightEm.toFixed(3)}em">${esc(ln)}</tspan>`;
+            })
             .join("");
 
-          // If vertical align is center, we already computed oy so that group is vertically centered using scaledH.
-          // Use dominant-baseline text-before-edge and text-anchor for horizontal alignment.
+          // Use alphabetic baseline and explicit px font-size for better compatibility
           chunks.push(
             `<g transform="translate(${ox}, ${oy})">` +
               `<text xml:space="preserve" style="writing-mode:${writingMode};text-orientation:${textOrientation};" ` +
-              `font-family="${esc(b.fontFamily || fontFamily)}" font-weight="${esc(String(weight))}" font-size="${fontSizePx}" ` +
-              `dominant-baseline="text-before-edge" text-anchor="${anchor}">` +
+              `font-family="${esc(b.fontFamily || fontFamily)}" font-weight="${esc(String(weight))}" font-size="${fontSizePx}px" ` +
+              `fill="black" dominant-baseline="alphabetic" text-anchor="${anchor}">` +
                tspans +
              `</text>` +
            `</g>`
