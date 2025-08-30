@@ -35,6 +35,8 @@ type Props = {
   /** ここ重要: イベントは渡さない */
   onBlockClick: (rectId: number, blockId: string) => void;
 
+  showEditorBackground: boolean;
+
   dividerColor: string;
   dividerWidth: number;
   onSeparatorDown: (
@@ -52,6 +54,7 @@ export default function Canvas(props: Props) {
     fontFamily, origToDisplayRect,
     onRectClick, onRectPointerDown, onHandlePointerDown,
     onBlockClick, dividerColor, dividerWidth, onSeparatorDown,
+  showEditorBackground,
   } = props;
 
   const gStyle: React.CSSProperties = useMemo(() => ({
@@ -63,11 +66,8 @@ export default function Canvas(props: Props) {
     e.stopPropagation();
   }, []);
 
-  const hasCanvas = Boolean(displaySize && imageUrl);
   const width = displaySize?.width ?? 1;
   const height = displaySize?.height ?? 1;
-
-  if (!hasCanvas) return null;
 
   return (
     <div
@@ -83,14 +83,14 @@ export default function Canvas(props: Props) {
         userSelect: "none",
       }}
     >
-      <div style={{ position: "relative", width, height, background: "#222", overflow: "hidden" }}>
+  <div style={{ position: "relative", width, height, background: "transparent", overflow: "hidden" }}>
         <SvgRoot
           width={width}
           height={height}
           onPanPointerDown={onPanPointerDown}
         >
           <g style={gStyle} onMouseDown={stop} onClick={stop}>
-            <BackgroundLayer width={width} height={height} imageUrl={imageUrl as string} />
+            <BackgroundLayer width={width} height={height} imageUrl={imageUrl} />
 
             <RectsLayer
               rects={rects}
@@ -98,6 +98,7 @@ export default function Canvas(props: Props) {
               origToDisplayRect={origToDisplayRect}
               onRectClick={onRectClick}
               onRectPointerDown={onRectPointerDown}
+              showEditorBackground={showEditorBackground}
             />
 
             <BlocksLayer

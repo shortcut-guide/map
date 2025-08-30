@@ -1,5 +1,5 @@
 // src/components/ImageEditor/hooks/useRects.ts
-import { useCallback, useState } from "react";
+import { useCallback, useState, useRef } from "react";
 import type { RectDef, BlockDef } from "../types";
 import { useHistoryStack } from "./rects/useHistoryStack";
 import { useSelection } from "./rects/useSelection";
@@ -17,7 +17,8 @@ type Getters = {
 
 export function useRects(getters: Getters) {
   const [rects, setRects] = useState<RectDef[]>([]);
-  const { selectedRectIds, setSelectedRectIds, selectRect, ensureSelected, clearSelection } = useSelection();
+  const idCounterRef = useRef<number>(Date.now());
+  const { selectedRectIds, setSelectedRectIds, selectRect, clearSelection } = useSelection();
   const { push, undo, redo } = useHistoryStack<RectDef[]>();
 
   const { activeBlock, setActiveBlock, onBlockClick } = useRectBlocks(rects, setRects);
@@ -32,10 +33,17 @@ export function useRects(getters: Getters) {
   }, [selectRect, setActiveBlock]);
 
   const onRectPointerDown = useCallback((e: React.PointerEvent, rectId: number) => {
-    ensureSelected(rectId, e.shiftKey);
+    // compute the next selection immediately so we can pass the up-to-date set to beginDrag
+    const next = new Set<number>(selectedRectIds);
+    if (!next.has(rectId)) {
+      if (!e.shiftKey) next.clear();
+      next.add(rectId);
+    }
+
+    setSelectedRectIds(next);
     push(rects);
-    beginDrag(e, selectedRectIds, rectId);
-  }, [ensureSelected, push, rects, beginDrag, selectedRectIds]);
+    beginDrag(e, next, rectId);
+  }, [push, rects, beginDrag, selectedRectIds, setSelectedRectIds]);
 
   const onHandlePointerDown = useCallback((e: React.PointerEvent, rectId: number, handle: "nw"|"ne"|"sw"|"se") => {
     push(rects);
@@ -52,15 +60,29 @@ export function useRects(getters: Getters) {
     if (!os) return;
     const w = Math.max(40, Math.round(os.width / 4));
     const h = Math.max(40, Math.round(os.height / 4));
-    const newRect: RectDef = {
-      id: Date.now(),
-      color: "#ff9900",
-      rect: { x: 20, y: 20, width: w, height: h },
-      blocks: [],
-      strokeWidth: getters.rectStrokeWidth(),
-    };
-    setRects((p) => [...p, newRect]);
-  }, [getters]);
+
+    // allocate id now
+    idCounterRef.current += 1;
+    const newId = idCounterRef.current;
+
+    // append using setter callback so we can offset based on current count (avoid exact overlap)
+    setRects((prev) => {
+      const offset = prev.length * 14;
+      const rect: RectDef = {
+        id: newId,
+        // editor-only rect: visible only when Editor BG is ON; stored color is working color
+        color: "#f7f7f7",
+        editorOnly: true,
+        rect: { x: 20 + offset, y: 20 + offset, width: w, height: h },
+        blocks: [],
+        strokeWidth: getters.rectStrokeWidth(),
+      };
+      return [...prev, rect];
+    });
+
+    // auto-select newly created rect so user can immediately drag/resize it
+    setSelectedRectIds(new Set([newId]));
+  }, [getters, setSelectedRectIds]);
 
   const deleteSelectedRects = useCallback(() => {
     push(rects);

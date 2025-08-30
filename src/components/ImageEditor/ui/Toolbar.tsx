@@ -14,6 +14,8 @@ type Props = {
   onAddRect: () => void;
   onDeleteSelected: () => void;
   selectedCount: number;
+  showEditorBackground: boolean;
+  onToggleEditorBackground: (v: boolean) => void;
 
   fontFamily: string;
   onChangeFontFamily: (v: string) => void;
@@ -48,6 +50,8 @@ export default function Toolbar(props: Props) {
     onAddRect,
     onDeleteSelected,
     selectedCount,
+  showEditorBackground,
+  onToggleEditorBackground,
     fontFamily,
     onChangeFontFamily,
     splitDividerColor,
@@ -91,6 +95,17 @@ export default function Toolbar(props: Props) {
         <button onClick={onDeleteSelected} disabled={selectedCount === 0}>
           Delete Selected
         </button>
+        <label style={{ display: "inline-flex", alignItems: "center", gap: 6, marginLeft: 8 }}>
+          <input
+            type="checkbox"
+            checked={showEditorBackground}
+            onChange={(e) => {
+              try { console.log('Toolbar toggle EditorBG ->', e.target.checked); } catch (err) {}
+              onToggleEditorBackground(e.target.checked);
+            }}
+          />
+          <span style={{ fontSize: 12 }}>Editor BG</span>
+        </label>
       </div>
 
       <div>

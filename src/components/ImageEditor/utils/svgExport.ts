@@ -354,7 +354,7 @@ export async function downloadSVG(opts: ExportOptions) {
       // Rect の枠線を出力する（数値をそのまま mm として扱う）
       {
         const rStrokeWidth = Number((r as any).strokeWidth ?? 1.25);
-        const rStrokeColor = (r as any).strokeColor ?? (r as any).color ?? "#222";
+  const rStrokeColor = (r as any).strokeColor ?? (r as any).color ?? "#222222";
         // 出力する場合は fill を none にして stroke を付与
         const rectStrokeAttr =
           rStrokeWidth > 0 ? ` stroke="${esc(rStrokeColor)}" stroke-width="${rStrokeWidth}mm" vector-effect="non-scaling-stroke"` : "";

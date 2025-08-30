@@ -62,12 +62,14 @@ export default function RectsLayer({
   origToDisplayRect,
   onRectClick,
   onRectPointerDown,
+  showEditorBackground,
 }: {
   rects: RectDef[];
   selectedRectIds: Set<number>;
   origToDisplayRect: (r: RectLike) => RectLike;
   onRectClick: (rectId: number) => void;
   onRectPointerDown: (e: React.PointerEvent, rectId: number) => void;
+  showEditorBackground: boolean;
 }) {
   // collect gradient ids by registering them into editorGrad map
   const gradDefs = useMemo(() => {
@@ -92,12 +94,52 @@ export default function RectsLayer({
   // render: only emit group here; defs are injected into root <svg> via useEffect
   return (
     <g>
-      {rects.map((r) => {
+      {rects.filter(Boolean).map((r) => {
          const base = getBaseRect(r);
          const dr = origToDisplayRect(base);
          const id = (r as any).id as number;
          const isSelected = selectedRectIds.has(id);
  
+         // editorOnly rects are hidden when editor background is OFF
+         const isEditorOnly = Boolean((r as any).editorOnly);
+
+         // base fill color resolution
+         const resolvedRectColor = (r as any).color;
+         const baseFillColor = resolvedRectColor && resolvedRectColor !== "transparent" ? resolvedRectColor : "#fff3cc";
+
+         // if editorOnly and editor BG is off, skip rendering by returning an empty array from map later
+         if (isEditorOnly && !showEditorBackground) return null;
+
+         // build base fill element: editorOnly -> semi-transparent when shown; normal rect -> shown normally
+         const baseFillElem = (
+           <rect
+             key={`fill_${id}`}
+             x={dr.x}
+             y={dr.y}
+             width={dr.width}
+             height={dr.height}
+             fill={isEditorOnly ? baseFillColor : (showEditorBackground ? "transparent" : baseFillColor)}
+             style={{ pointerEvents: "none" }}
+             opacity={isEditorOnly ? 0.6 : undefined}
+           />
+         );
+
+         // overlay to capture pointer events for the whole rect only when there are no blocks
+         const hasBlocks = (r.blocks ?? []).length > 0;
+         const overlayElem = !hasBlocks ? (
+           <rect
+             key={`overlay_${id}`}
+             x={dr.x}
+             y={dr.y}
+             width={dr.width}
+             height={dr.height}
+             fill="transparent"
+             onClick={() => onRectClick(id)}
+             onPointerDown={(e) => onRectPointerDown(e as any, id)}
+             style={{ pointerEvents: "all", cursor: "pointer" }}
+           />
+         ) : null;
+
          // render blocks inside rect
          const blocksElems = (r.blocks ?? []).map((b: any, bi: number) => {
            const bx = dr.x + b.x * dr.width;
@@ -156,7 +198,11 @@ export default function RectsLayer({
             />
           ) : null;
  
-         return [...blocksElems, outerStrokeElem];
+         // ensure overlay is the first element so blocks/outline draw on top
+         // build final list: base fill under blocks, then blocks, then outline; overlay goes on top only when no blocks
+         const items = [baseFillElem, ...blocksElems, outerStrokeElem];
+         if (overlayElem) items.push(overlayElem);
+         return items;
        })}
     </g>
   );

@@ -6,6 +6,7 @@ type DragSnapshot = {
   pointerId: number;
   startMouse: { x: number; y: number };
   startRectsOrig: Record<number, { x: number; y: number; width: number; height: number }>;
+  captureTarget?: Element | null;
 };
 
 export function useRectDrag(
@@ -32,8 +33,13 @@ export function useRectDrag(
       pointerId: pid,
       startMouse: { x: e.clientX, y: e.clientY },
       startRectsOrig,
+      captureTarget: (e.target as Element) || null,
     };
-    (e.target as Element).setPointerCapture?.(pid);
+    try {
+      (e.target as Element).setPointerCapture?.(pid);
+    } catch (err) {
+      // some browsers may throw if capture not allowed; ignore
+    }
   }
 
   useEffect(() => {
@@ -66,6 +72,11 @@ export function useRectDrag(
     function endDrag(e: PointerEvent) {
       const snap = dragRef.current;
       if (snap && e.pointerId === snap.pointerId) {
+        try {
+          snap.captureTarget?.releasePointerCapture?.(snap.pointerId);
+        } catch (err) {
+          // ignore
+        }
         dragRef.current = null;
       }
     }

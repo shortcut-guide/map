@@ -48,8 +48,14 @@ export default function ImageEditor() {
     pan: { x: 0, y: 0 },
     splitDivider: { color: "#00bfff", width: 2 },
     rectStrokeWidth: 1.25,
-    rectStrokeColor: "#222",
+  rectStrokeColor: "#222222",
   });
+  const [showEditorBackground, setShowEditorBackground] = useState<boolean>(true);
+
+  // debug: log changes
+  React.useEffect(() => {
+    try { console.log('ImageEditor showEditorBackground ->', showEditorBackground); } catch (err) {}
+  }, [showEditorBackground]);
 
   const {
     rects,
@@ -180,7 +186,7 @@ export default function ImageEditor() {
       fontFamily: p.state.fontFamily,
       splitDivider: { ...p.state.splitDivider },
       rectStrokeWidth: p.state.rectStrokeWidth,
-      rectStrokeColor: p.state.rectStrokeColor ?? "#222",
+  rectStrokeColor: p.state.rectStrokeColor ?? "#222222",
       zoom: p.state.zoom,
       pan: { ...p.state.pan },
     }));
@@ -296,9 +302,11 @@ export default function ImageEditor() {
         onZoomReset={onZoomReset}
         onUndo={undo}
         onRedo={redo}
-        onAddRect={addRect}
+  onAddRect={addRect}
         onDeleteSelected={deleteSelectedRects}
         selectedCount={selectedRectIds.size}
+  showEditorBackground={showEditorBackground}
+  onToggleEditorBackground={(v) => setShowEditorBackground(v)}
         fontFamily={editor.fontFamily}
         onChangeFontFamily={(v) => setEditor((s) => ({ ...s, fontFamily: v }))}
         splitDividerColor={editor.splitDivider.color}
@@ -349,11 +357,12 @@ export default function ImageEditor() {
             fontFamily={editor.fontFamily}
             origToDisplayRect={origToDisplayRect}
             onRectClick={onRectClickBridge}
-            onRectPointerDown={onRectPointerDown}
+              onRectPointerDown={onRectPointerDown}
             onHandlePointerDown={onHandlePointerDown}
             onBlockClick={onBlockClickBridge}
             dividerColor={editor.splitDivider.color}
             dividerWidth={editor.splitDivider.width}
+              showEditorBackground={showEditorBackground}
             onSeparatorDown={onSeparatorDown}
           />
         </div>

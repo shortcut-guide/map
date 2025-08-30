@@ -42,6 +42,8 @@ export type RectDef = {
   color: string;
   rect: Rect;
   blocks: BlockDef[];
+  /** editor-only rects (created via Add Rect) - hidden when Editor BG is false */
+  editorOnly?: boolean;
   strokeWidth?: number;
   strokeGradient?: { enabled: boolean; from: string; to: string; angleDeg: number };
 };
