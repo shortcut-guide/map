@@ -216,7 +216,10 @@ export async function downloadSVG(opts: ExportOptions) {
   chunks.push(`<image href="${esc(mainImg)}" xlink:href="${esc(mainImg)}" x="0" y="0" width="${origSize.width}" height="${origSize.height}" />`);
 
   for (const r of rects) {
-    const rx = r.rect.x;
+  // skip editor-only rects (working UI artifacts)
+  if ((r as any).editorOnly) continue;
+
+  const rx = r.rect.x;
     const ry = r.rect.y;
     const rw = r.rect.width;
     const rh = r.rect.height;
@@ -318,14 +321,20 @@ export async function downloadSVG(opts: ExportOptions) {
           const lineHeightPx = fontSizePx * lineHeightRatio;
           // ascent を base (fontSizePx) で実測（環境により異なるので canvas で計測）
           const ascentPx = measureTextAscentPx(fontSizePx, b.fontFamily ?? fontFamily, String(weight));
-           const tspans = lines
-            .map((ln, i) => `<tspan x="0" y="${(ascentPx + i * lineHeightPx)}">${esc(ln)}</tspan>`)
-             .join("");
+
+          // group origin oy is the top edge where first line should start; we will position tspan y relative to that
+          // Use dominant-baseline="text-before-edge" so y corresponds to the top of the text box
+          const tspans = lines
+            .map((ln, i) => `<tspan x="0" y="${i * lineHeightPx + ascentPx}">${esc(ln)}</tspan>`)
+            .join("");
+
+          // If vertical align is center, we already computed oy so that group is vertically centered using scaledH.
+          // Use dominant-baseline text-before-edge and text-anchor for horizontal alignment.
           chunks.push(
             `<g transform="translate(${ox}, ${oy})">` +
               `<text xml:space="preserve" style="writing-mode:${writingMode};text-orientation:${textOrientation};" ` +
               `font-family="${esc(b.fontFamily || fontFamily)}" font-weight="${esc(String(weight))}" font-size="${fontSizePx}" ` +
-              `dominant-baseline="alphabetic" text-anchor="${anchor}">` +
+              `dominant-baseline="text-before-edge" text-anchor="${anchor}">` +
                tspans +
              `</text>` +
            `</g>`
@@ -351,14 +360,15 @@ export async function downloadSVG(opts: ExportOptions) {
         }
       }
 
-      // Rect の枠線を出力する（数値をそのまま mm として扱う）
+      // Rect の枠線を出力するのは明示的にエクスポート指定された場合のみ。
+      // 編集用の作業枠やエディタ内の見た目をそのまま出さないようにする。
       {
-        const rStrokeWidth = Number((r as any).strokeWidth ?? 1.25);
-  const rStrokeColor = (r as any).strokeColor ?? (r as any).color ?? "#222222";
-        // 出力する場合は fill を none にして stroke を付与
-        const rectStrokeAttr =
-          rStrokeWidth > 0 ? ` stroke="${esc(rStrokeColor)}" stroke-width="${rStrokeWidth}mm" vector-effect="non-scaling-stroke"` : "";
-        chunks.push(`<rect x="${rx}" y="${ry}" width="${rw}" height="${rh}" fill="none"${rectStrokeAttr} />`);
+        const rExportStroke = Boolean((r as any).exportStroke);
+        const rStrokeWidth = Number((r as any).strokeWidth ?? 0);
+        const rStrokeColor = (r as any).strokeColor ?? (r as any).color ?? "#222222";
+        const rectStrokeAttr = rExportStroke && rStrokeWidth > 0 ? ` stroke="${esc(rStrokeColor)}" stroke-width="${rStrokeWidth}mm" vector-effect="non-scaling-stroke"` : "";
+        // only emit stroke when explicitly requested
+        if (rectStrokeAttr) chunks.push(`<rect x="${rx}" y="${ry}" width="${rw}" height="${rh}" fill="none"${rectStrokeAttr} />`);
       }
     }
   }
