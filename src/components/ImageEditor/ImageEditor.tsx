@@ -13,6 +13,7 @@ import {
 } from "./utils/persist";
 import { usePan } from "./hooks/usePan";
 import { useRects } from "./hooks/useRects";
+import { parseExcelData, extractCounts } from "./utils/dataParser";
 import type { RectDef, BlockDef, ActiveBlock  } from "./types";
 
 const DEFAULT_FONT_FAMILY = "'Meiryo', 'Noto Sans JP', sans-serif";
@@ -42,6 +43,7 @@ export default function ImageEditor() {
   const [displaySize, setDisplaySize] = useState<Size | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const imgRef = useRef<HTMLImageElement | null>(null);
+  const [inputData, setInputData] = useState<string>("");
   const [editor, setEditor] = useState<EditorState>({
     fontFamily: DEFAULT_FONT_FAMILY,
     zoom: 1,
@@ -100,6 +102,57 @@ export default function ImageEditor() {
     setActiveRectId(null);
     setActiveBlock(null);
   }, [setRects, setSelectedRectIds]);
+
+  const applyDataToRects = useCallback(() => {
+    const parsedData = parseExcelData(inputData);
+    const counts = extractCounts(parsedData);
+    const totalCount = counts.reduce((sum, c) => sum + c, 0);
+    if (totalCount === 0) return;
+
+    const os = origSize;
+    if (!os) return;
+
+    // 1つのRectを作成
+    const rectWidth = Math.max(100, os.width * 0.8);
+    const rectHeight = Math.max(50, os.height * 0.1);
+    const rectX = (os.width - rectWidth) / 2;
+    const rectY = os.height - rectHeight - 20;
+
+    const blocks: BlockDef[] = [];
+    let currentX = 0;
+    for (let i = 0; i < parsedData.length; i++) {
+      const count = counts[i];
+      const width = (count / totalCount) * rectWidth;
+      blocks.push({
+        id: `block_${i}`,
+        x: currentX / rectWidth,
+        y: 0,
+        width: width / rectWidth,
+        height: 1,
+        text: parsedData[i],
+        bgColor: "transparent",
+        textAlign: "center",
+        verticalAlign: "center",
+        writingMode: "horizontal-tb",
+        textOrientation: "mixed",
+        fontFamily: editor.fontFamily,
+        fontWeight: "normal",
+        textPadding: { top: 1, right: 1, bottom: 1, left: 1 },
+      });
+      currentX += width;
+    }
+
+    const newRect: RectDef = {
+      id: Date.now(),
+      color: "#f7f7f7",
+      rect: { x: rectX, y: rectY, width: rectWidth, height: rectHeight },
+      blocks,
+      strokeWidth: editor.rectStrokeWidth,
+    };
+
+    setRects([newRect]);
+    setSelectedRectIds(new Set([newRect.id]));
+  }, [inputData, origSize, editor, setRects, setSelectedRectIds]);
 
   const onImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement, Event>) => {
     const w = (e.target as HTMLImageElement).naturalWidth;
@@ -342,6 +395,19 @@ export default function ImageEditor() {
         onImportJSON={onImportJSON}
         onExportSVG={onExportSVG}
       />
+
+      <div style={{ marginBottom: 8 }}>
+        <textarea
+          value={inputData}
+          onChange={(e) => setInputData(e.target.value)}
+          placeholder="Excelからコピーしたデータを入力"
+          rows={4}
+          style={{ width: "100%", padding: 8, fontFamily: "monospace" }}
+        />
+        <button onClick={applyDataToRects} style={{ marginTop: 4, padding: "4px 8px" }}>
+          データ適用
+        </button>
+      </div>
 
       <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
         <div
